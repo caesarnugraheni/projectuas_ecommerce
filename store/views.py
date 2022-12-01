@@ -2,54 +2,46 @@ from django.shortcuts import render
 from django.http import JsonResponse
 import json
 import datetime
+from .utils import cookieCart, cartData, guestOrder
+
 
 from .models import *
 
 def store(request):
+	data = cartData(request)
 
-	if request.user.is_authenticated:
-		customer = request.user.customer
-		order, created = Order.objects.get_or_create(customer=customer, complete=False)
-		items = order.orderitem_set.all()
-		cartItems = order.get_cart_items
-	else:
-		item = []
-		order = {'get_cart-total':0, 'get_cart_item':0, 'shipping':False}
-		cartItems = order['get_cart_items']
+	cartItems = data['cartItems']
+	order = data['order']
+	items = data['items']
+
 	products = Product.objects.all()
-	context = {'products' : products, 'carItems':cartItems}
+	context = {'products':products, 'cartItems':cartItems}
 	return render(request, 'store/store.html', context)
 
+
 def cart(request):
+	data = cartData(request)
 
-	if request.user.is_authenticated:
-		customer = request.user.customer
-		order, created = Order.objects.get_or_create(customer=customer, complete=False)
-		items = order.orderitem_set.all()
-		cartItems = order.get_cart_items
-	else:
-		items = []
-		order = {'get_cart_total' : 0, 'get_cart_items' : 0, 'shipping':False}
-		cartItems = order['get_cart_items']
+	cartItems = data['cartItems']
+	order = data['order']
+	items = data['items']
 
-	context = {'items' : items, 'order' : order, 'carItems':cartItems}
+	context = {'items':items, 'order':order, 'cartItems':cartItems}
 	return render(request, 'store/cart.html', context)
 
 def checkout(request):
-	if request.user.is_authenticated:
-		customer = request.user.customer
-		order, created = Order.objects.get_or_create(customer=customer, complete=False)
-		items = order.orderitem_set.all()
-		cartItems = order.get_cart_items
-	else:
-		items = []
-		order = {'get_cart_total' : 0, 'get_cart_items' : 0, 'shipping':False}
+	data = cartData(request)
+	
+	cartItems = data['cartItems']
+	order = data['order']
+	items = data['items']
 
-	context = {'items' : items, 'order' : order, 'carItems':cartItems}
+	context = {'items':items, 'order':order, 'cartItems':cartItems}
 	return render(request, 'store/checkout.html', context)
 
+
 def updateItem(request):
-	data = json.loads(request.data)
+	data = json.loads(request.body)
 	productId = data['productId']
 	action = data['action']
 
@@ -75,7 +67,9 @@ def updateItem(request):
 
 	return JsonResponse('Item was added', safe=False)
 
+#from django.views.decorators.csrf import csrf_exempt
 
+#@csrf_exempt
 def processOrder(request):
 	transaction_id = datetime.datetime.now().timestamp()
 	data = json.loads(request.body)
@@ -83,6 +77,8 @@ def processOrder(request):
 	if request.user.is_authenticated:
 		customer = request.user.costumer
 		order, created = Order.objects.get_or_create(customer=customer, complete=False)
+
+		
 		total = float(data['form']['total'])
 		order.transaction_id = transaction_id
 
